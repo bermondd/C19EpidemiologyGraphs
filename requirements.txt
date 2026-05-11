@@ -1,7 +1,7 @@
 adbc-driver-manager==1.11.0
 adbc-driver-sqlite==1.11.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.13.3
+aiohttp==3.13.4
 aiosignal==1.4.0
 appnope==0.1.4
 asttokens==3.0.1
@@ -16,7 +16,7 @@ debugpy==1.8.20
 decorator==5.2.1
 duckdb==1.5.2
 executing==2.2.1
-filelock==3.20.2
+filelock==3.20.3
 fonttools==4.61.1
 frozenlist==1.8.0
 fsspec==2025.12.0
@@ -47,7 +47,7 @@ pandas==2.3.3
 pandas-stubs==2.3.3.251219
 parso==0.8.6
 pexpect==4.9.0
-pillow==12.1.0
+pillow==12.2.0
 platformdirs==4.9.4
 polars==1.40.0
 polars-runtime-32==1.40.0
@@ -65,7 +65,7 @@ pyproj==3.7.2
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pyzmq==27.1.0
-requests==2.32.5
+requests==2.33.0
 scipy==1.16.3
 seaborn==0.13.2
 setuptools==80.9.0
@@ -83,7 +83,7 @@ traitlets==5.14.3
 types-pytz==2025.2.0.20251108
 typing_extensions==4.15.0
 tzdata==2025.3
-urllib3==2.6.2
+urllib3==2.6.3
 wcwidth==0.6.0
 widgetsnbextension==4.0.15
 xxhash==3.6.0
