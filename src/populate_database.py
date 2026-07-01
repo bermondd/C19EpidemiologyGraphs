@@ -42,31 +42,17 @@ if __name__ == "__main__":
     cur.execute("""
         CREATE TABLE epidemiology (
             location_key TEXT,
-            window_starting_date INT,
-            window_size INT,
-            true_new_confirmed INT,
-            true_new_deceased INT,
-            true_new_recovered INT,
-            true_new_tested INT,
-            interpolated_new_confirmed INT,
-            interpolated_new_deceased INT,
-            interpolated_new_recovered INT,
-            interpolated_new_tested INT,
+            date INT,
+            new_confirmed INT,
+            new_deceased INT,
+            new_recovered INT,
+            new_tested INT,
             cumulative_confirmed INT,
             cumulative_deceased INT,
             cumulative_recovered INT,
             cumulative_tested INT,
-            num_non_nulls_in_true_confirmed INT NOT NULL,
-            num_non_nulls_in_true_deceased INT NOT NULL,
-            num_non_nulls_in_true_recovered INT NOT NULL,
-            num_non_nulls_in_true_tested INT NOT NULL,
-            num_non_nulls_in_interpolated_confirmed INT NOT NULL,
-            num_non_nulls_in_interpolated_deceased INT NOT NULL,
-            num_non_nulls_in_interpolated_recovered INT NOT NULL,
-            num_non_nulls_in_interpolated_tested INT NOT NULL,
-            PRIMARY KEY(location_key, window_starting_date, window_size),
-            FOREIGN KEY (location_key) REFERENCES vertices(location_key),
-            CHECK (window_size > 0)
+            PRIMARY KEY(location_key, date),
+            FOREIGN KEY (location_key) REFERENCES vertices(location_key)
         ) STRICT;
     """)
 
@@ -74,24 +60,22 @@ if __name__ == "__main__":
     # Insert vertices
     curr_graph_matrix = load_npz("../intermediate_data/full_graphs/full_gadm_graph_level_0.npz")
     graph_0 = tg.data.Data(x=torch.arange(curr_graph_matrix.shape[0], dtype=torch.int32).unsqueeze(1),
-                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0]).coalesce()
+                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0])
 
     curr_graph_matrix = load_npz("../intermediate_data/full_graphs/full_gadm_graph_level_1.npz")
     graph_1 = tg.data.Data(x=torch.arange(curr_graph_matrix.shape[0], dtype=torch.int32).unsqueeze(1),
-                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0]).coalesce()
+                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0])
 
     curr_graph_matrix = load_npz("../intermediate_data/full_graphs/full_gadm_graph_level_2.npz")
     graph_2 = tg.data.Data(x=torch.arange(curr_graph_matrix.shape[0], dtype=torch.int32).unsqueeze(1),
-                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0]).coalesce()
+                           edge_index=tg.utils.from_scipy_sparse_matrix(curr_graph_matrix)[0])
 
-    add_self_loops = tg.transforms.AddSelfLoops()
     full_graphs = tg.data.Data(x=torch.arange(graph_0.num_nodes + graph_1.num_nodes + graph_2.num_nodes,
                                               dtype=torch.int32),
                                edge_index=torch.cat([graph_0.edge_index,
                                                      graph_1.edge_index + graph_0.num_nodes,
                                                      graph_2.edge_index + graph_0.num_nodes + graph_1.num_nodes],
-                                                    dim=1))
-    full_graphs = add_self_loops(full_graphs).coalesce()
+                                                    dim=1)).coalesce()
 
     vertex_info_0 = pl.scan_parquet(
         "../intermediate_data/vertex_info/vertex_info_level_0.parquet"
@@ -154,15 +138,9 @@ if __name__ == "__main__":
     ).filter(
         pl.col("location_key").is_in(filter_series)
     ).select(
-        "location_key", pl.col("date").cast(pl.Int32), "window_size",
-        "true_new_confirmed", "true_new_deceased", "true_new_recovered", "true_new_tested",
-        "interpolated_new_confirmed", "interpolated_new_deceased",
-        "interpolated_new_recovered", "interpolated_new_tested",
-        "cumulative_confirmed", "cumulative_deceased", "cumulative_recovered", "cumulative_tested",
-        "num_non_nulls_in_true_confirmed", "num_non_nulls_in_true_deceased",
-        "num_non_nulls_in_true_recovered", "num_non_nulls_in_true_tested",
-        "num_non_nulls_in_interpolated_confirmed", "num_non_nulls_in_interpolated_deceased",
-        "num_non_nulls_in_interpolated_recovered", "num_non_nulls_in_interpolated_tested"
+        "location_key", pl.col("date").cast(pl.Int32),
+        "new_confirmed", "new_deceased", "new_recovered", "new_tested",
+        "cumulative_confirmed", "cumulative_deceased", "cumulative_recovered", "cumulative_tested"
     ).collect(engine="streaming")
 
     n_rows_per_slice = 100_000
@@ -170,16 +148,10 @@ if __name__ == "__main__":
     for frame in tqdm(epidemiologic_df.iter_slices(n_rows_per_slice), total=total_tqdm):
         cur.executemany("""
             INSERT INTO epidemiology (
-                location_key, window_starting_date, window_size,
-                true_new_confirmed, true_new_deceased, true_new_recovered, true_new_tested,
-                interpolated_new_confirmed, interpolated_new_deceased,
-                interpolated_new_recovered, interpolated_new_tested,
+                location_key, date,
+                new_confirmed, new_deceased, new_recovered, new_tested,
                 cumulative_confirmed, cumulative_deceased, cumulative_recovered, cumulative_tested,
-                num_non_nulls_in_true_confirmed, num_non_nulls_in_true_deceased,
-                num_non_nulls_in_true_recovered, num_non_nulls_in_true_tested,
-                num_non_nulls_in_interpolated_confirmed, num_non_nulls_in_interpolated_deceased,
-                num_non_nulls_in_interpolated_recovered, num_non_nulls_in_interpolated_tested
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, frame.rows())
 
     # Commit changes to the database file and close the connections
